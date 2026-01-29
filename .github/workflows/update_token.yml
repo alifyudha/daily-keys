@@ -2,14 +2,14 @@ name: Update Token
 
 on:
   schedule:
-    - cron: '0 */12 * * *'
-  workflow_dispatch:
+    - cron: '0 */12 * * *' # Runs every 12 hours
+  workflow_dispatch: # Allows you to click "Run workflow" manually
 
 jobs:
   update-token:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Required to push the changes back to the repo
 
     steps:
       - name: Checkout repository
@@ -26,12 +26,16 @@ jobs:
           sudo apt-get install -y xvfb
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Ensure patchright browsers are installed
           patchright install chromium --with-deps
 
-      - name: Run token downloader (with xvfb)
+      - name: Run token downloader (with xvfb and 1080p resolution)
         env:
-          HEADLESS: "false"
-        run: xvfb-run --auto-servernum python main.py
+          # We force headless to be False so the browser thinks it has a UI
+          HEADLESS: "false" 
+        # Added --server-args to set a 1920x1080 screen. 
+        # Without this, Cloudflare popup might be off-screen.
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
 
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
