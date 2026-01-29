@@ -130,22 +130,33 @@ async def get_apikey_auto():
     print("Launching browser with nodriver...")
     headless = os.environ.get("HEADLESS", "False").lower() == "true"
     
-    # Adding extra flags for VPS/Root environments
+    # Adding extra flags for VPS/Root/GitHub Actions environments
     browser_args = [
         '--no-sandbox', 
         '--disable-setuid-sandbox', 
         '--disable-dev-shm-usage',
         '--disable-gpu',
-        '--window-size=1280,720',
-        '--start-maximized'
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--remote-debugging-port=9222',
+        '--window-size=1920,1080'
     ]
     
-    browser = await uc.start(
-          headless=headless, 
-          browser_args=browser_args,
-          no_sandbox=True,
-          lang='en-US'
-      )
+    # Try starting with specific config to be more robust in CI environments
+    try:
+        browser = await uc.start(
+            headless=headless, 
+            browser_args=browser_args,
+            no_sandbox=True,
+            lang='en-US'
+        )
+    except Exception as e:
+        print(f"Primary browser launch failed: {e}. Retrying with minimal config...")
+        # Fallback for some environments where browser_args might conflict
+        browser = await uc.start(
+            headless=headless,
+            no_sandbox=True
+        )
     tab = await browser.get(KEYGEN_URL)
     
     try:
