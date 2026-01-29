@@ -1,0 +1,40 @@
+name: Update Token
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  update-token:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          patchright install chromium --with-deps
+
+      - name: Run token downloader (with xvfb)
+        env:
+          HEADLESS: "false"
+        run: xvfb-run --auto-servernum python main.py
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update tokens.json [skip ci]"
+          file_pattern: "tokens.json"
