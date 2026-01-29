@@ -139,7 +139,8 @@ async def get_apikey_auto():
         '--no-first-run',
         '--no-default-browser-check',
         '--remote-debugging-port=9222',
-        '--window-size=1920,1080'
+        '--window-size=1920,1080',
+        '--user-data-dir=/tmp/chrome-user-data-' + str(int(time.time()))
     ]
     
     # Try starting with specific config to be more robust in CI environments
@@ -151,10 +152,11 @@ async def get_apikey_auto():
             lang='en-US'
         )
     except Exception as e:
-        print(f"Primary browser launch failed: {e}. Retrying with minimal config...")
+        print(f"Primary browser launch failed: {e}. Retrying with absolute minimal root config...")
         # Fallback for some environments where browser_args might conflict
         browser = await uc.start(
             headless=headless,
+            browser_args=['--no-sandbox', '--disable-setuid-sandbox'],
             no_sandbox=True
         )
     tab = await browser.get(KEYGEN_URL)
