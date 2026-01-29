@@ -1,1 +1,5 @@
-patchright
+nodriver
+opencv-python
+cloudflare_bypass
+pyautogui
+python-xlib

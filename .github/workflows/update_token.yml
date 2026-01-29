@@ -23,11 +23,9 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb google-chrome-stable
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # Ensure patchright browsers are installed
-          patchright install chromium --with-deps
 
       - name: Run token downloader (with xvfb and 1080p resolution)
         env:
@@ -38,7 +36,16 @@ jobs:
         run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
 
       - name: Commit and push changes
+        if: always()
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update tokens.json [skip ci]"
-          file_pattern: "tokens.json"
+          commit_message: "chore: update tokens.json and screenshots [skip ci]"
+          file_pattern: "tokens.json screenshots/*.png"
+
+      - name: Upload screenshots as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: automation-screenshots
+          path: screenshots/*.png
+          retention-days: 7
