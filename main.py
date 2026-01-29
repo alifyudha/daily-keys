@@ -5,7 +5,6 @@ import asyncio
 import nodriver as uc
 from cloudflare_bypass import bypass
 
-# Configuration
 KEYGEN_URL = "https://manifesthub1.filegear-sg.me/"
 
 async def take_screenshot(tab, name):
@@ -25,7 +24,6 @@ def parse_eval_result(result):
     if result is None:
         return None
     
-    # Handle the nested list format: [['exists', {'type': 'boolean', 'value': True}], ...]
     if isinstance(result, list):
         if len(result) > 0 and isinstance(result[0], list) and len(result[0]) == 2:
             parsed_dict = {}
@@ -37,7 +35,6 @@ def parse_eval_result(result):
                         parsed_dict[key] = val_obj['value']
             return parsed_dict
         
-        # Handle simple list of values or single wrapped value
         processed_list = []
         for item in result:
             if isinstance(item, dict) and 'value' in item:
@@ -46,7 +43,6 @@ def parse_eval_result(result):
                 processed_list.append(item)
         return processed_list[0] if len(processed_list) == 1 else processed_list
 
-    # Handle single dictionary result
     if isinstance(result, dict) and 'value' in result:
         return result['value']
     
@@ -57,7 +53,6 @@ async def solve_cloudflare_challenge(tab):
     Dedicated helper to detect and solve Cloudflare Turnstile/Challenge using external lib.
     """
     try:
-        # Check if we are on a Cloudflare challenge page OR if turnstile is present and UNSOLVED
         result = await tab.evaluate("""
             (function() {
                 const title = document.title.toLowerCase();
@@ -65,21 +60,17 @@ async def solve_cloudflare_challenge(tab):
                                        title.includes('just a moment') || 
                                        document.querySelector('#challenge-running') !== null;
                 
-                // Check if Turnstile is present
                 const turnstileContainer = document.querySelector('#turnstile-container') || 
                                          document.querySelector('.cf-turnstile') ||
                                          document.querySelector('#cf-chl-widget-multi');
                 
                 if (!isChallengePage && !turnstileContainer) return { solved: true };
 
-                // Check if Turnstile is already SOLVED
-                // 1. Check for the success token input
                 const responseInput = document.querySelector('[name="cf-turnstile-response"]');
                 if (responseInput && responseInput.value && responseInput.value.length > 10) {
                     return { solved: true };
                 }
 
-                // 2. Check for "Success!" text in the widget
                 const widgetIframe = document.querySelector('iframe[src*="cloudflare.com/cdn-cgi/challenge"]');
                 if (widgetIframe) {
                     // We can't see inside the iframe easily, but sometimes the container classes change
@@ -91,7 +82,6 @@ async def solve_cloudflare_challenge(tab):
 
                 if (!isChallengePage && !turnstileContainer) return { solved: true };
 
-                // If we reach here, there's an unsolved challenge
                 let rect = null;
                 const turnstileIframe = document.querySelector('iframe[src*="cloudflare.com/cdn-cgi/challenge"]') || 
                                       document.querySelector('iframe[id*="cf-chl"]') ||
@@ -117,8 +107,6 @@ async def solve_cloudflare_challenge(tab):
 
         print("Cloudflare challenge detected. Running external bypass...")
         
-        # Run the external bypass library in a separate thread to avoid blocking asyncio
-        # Note: cloudflare_bypass uses pyautogui which needs the window to be visible
         def run_bypass():
             return bypass(mode='light', warmup_time=2, timeout=20)
         
@@ -130,7 +118,6 @@ async def solve_cloudflare_challenge(tab):
             return True
         else:
             print("External bypass timed out, falling back to coordinate click...")
-            # Keep the coordinate click as a fallback
             return False
     except Exception as e:
         print(f"Bypass error: {e}")
@@ -224,7 +211,6 @@ async def get_apikey_auto():
                 # 2. Check main page state
                 result = await tab.evaluate("""
                     (function() {
-                        // Better button detection
                         const btn = document.querySelector('#generateBtn') || 
                                     document.querySelector('button.generate-btn') ||
                                     Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Generate'));
@@ -232,12 +218,10 @@ async def get_apikey_auto():
                         const keyContainer = document.querySelector('.api-key div') || 
                                            document.querySelector('#api-key-display');
                         
-                        // Check if key is already there
                         if (keyContainer && keyContainer.innerText.trim().length > 5) {
                             return { state: 'key_found', key: keyContainer.innerText.trim() };
                         }
                         
-                        // Turnstile detection (re-use logic for consistency)
                         const turnstileContainer = document.querySelector('#turnstile-container') || 
                                                  document.querySelector('.cf-turnstile');
                         const responseInput = document.querySelector('[name="cf-turnstile-response"]');
@@ -245,7 +229,6 @@ async def get_apikey_auto():
                         
                         if (!btn) return { state: 'not_found' };
                         
-                        // A button might be "disabled" by a class or attribute
                         const isDisabled = btn.disabled || 
                                          btn.classList.contains('disabled') || 
                                          btn.getAttribute('aria-disabled') === 'true';
@@ -276,31 +259,28 @@ async def get_apikey_auto():
                     is_disabled = info.get('disabled', True)
                     is_visible = info.get('visible', False)
                     
-                    # Force click if turnstile is solved, even if it looks disabled
                     should_click = (not is_disabled and is_visible) or (turnstile_solved and is_visible)
                     
                     if should_click:
-                        if not button_clicked or (turnstile_solved and int(time.time()) % 5 == 0): # Re-click every 5s if solved but no key
+                        if not button_clicked or (turnstile_solved and int(time.time()) % 5 == 0):
                             if turnstile_solved and is_disabled:
                                 print("Turnstile solved! FORCING button click despite disabled state...")
                             else:
                                 print("Generate button is ENABLED and READY. Clicking now...")
                             
-                            # Aggressive clicking with attribute removal
+
                             await tab.evaluate("""
                                 (function() {
                                     const btn = document.querySelector('#generateBtn') || 
                                                 document.querySelector('button.generate-btn') ||
                                                 Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Generate'));
                                     if (btn) {
-                                        // Force enable if it's stuck
                                         btn.disabled = false;
                                         btn.classList.remove('disabled');
                                         btn.removeAttribute('disabled');
                                         btn.setAttribute('aria-disabled', 'false');
                                         
                                         btn.click();
-                                        // Also try dispatching click event
                                         btn.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
                                     }
                                 })()
